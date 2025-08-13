@@ -126,22 +126,6 @@ http://localhost:8000
 
 ---
 
-## 🌐 Deploy (Render)
-
-1. Push this folder to a new GitHub repo.
-2. On Render → **New Web Service** → connect your repo.
-3. **Build Command:** `npm install`
-   **Start Command:** `npm start`
-4. Deploy. Render will set `PORT` automatically (your code supports `process.env.PORT`).
-
-> Optional in `package.json`:
->
-> ```json
-> "engines": { "node": ">=18.x" }
-> ```
-
----
-
 ## ❗ Notes & Troubleshooting
 
 * Always **URL-encode** the YouTube URL when calling endpoints (the `?v=` query can break unencoded requests).
