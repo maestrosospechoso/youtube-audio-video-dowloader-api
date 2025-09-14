@@ -4,7 +4,9 @@
   "description": "A simple YouTube download API using Express and @distube/ytdl-core",
   "main": "index.js",
   "scripts": {
-    "start": "node index.js"
+    "start": "node index.js",
+    "build": "mkdir -p dist && cp -r public/* dist/",
+    "dev": "node index.js"
   },
   "author": "AbdulHameed Yusuff",
   "license": "MIT",

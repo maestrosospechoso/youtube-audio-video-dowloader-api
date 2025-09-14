@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>YouTube Download API Interface</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+</head>
+<body class="bg-gradient-to-br from-red-50 to-red-100 min-h-screen">
+    <div class="container mx-auto px-4 py-8">
+        <div class="max-w-4xl mx-auto">
+            <!-- Header -->
+            <div class="text-center mb-8">
+                <div class="flex items-center justify-center mb-4">
+                    <i class="fab fa-youtube text-red-600 text-4xl mr-3"></i>
+                    <h1 class="text-4xl font-bold text-gray-800">YouTube Download API</h1>
+                </div>
+                <p class="text-gray-600 text-lg">Get video info, list formats, and download YouTube videos</p>
+            </div>
+
+            <!-- URL Input -->
+            <div class="bg-white rounded-lg shadow-lg p-6 mb-6">
+                <label for="youtube-url" class="block text-sm font-medium text-gray-700 mb-2">
+                    YouTube URL
+                </label>
+                <div class="flex gap-3">
+                    <input 
+                        type="url" 
+                        id="youtube-url" 
+                        placeholder="https://www.youtube.com/watch?v=dQw4w9WgXcQ"
+                        class="flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent outline-none transition-all"
+                    >
+                    <button 
+                        onclick="getVideoInfo()" 
+                        class="px-6 py-3 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-medium flex items-center gap-2"
+                    >
+                        <i class="fas fa-search"></i>
+                        Get Info
+                    </button>
+                </div>
+            </div>
+
+            <!-- Loading State -->
+            <div id="loading" class="hidden text-center py-8">
+                <div class="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-red-600"></div>
+                <p class="mt-2 text-gray-600">Loading...</p>
+            </div>
+
+            <!-- Error State -->
+            <div id="error" class="hidden bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
+                <div class="flex items-center">
+                    <i class="fas fa-exclamation-triangle text-red-600 mr-2"></i>
+                    <span id="error-message" class="text-red-800"></span>
+                </div>
+            </div>
+
+            <!-- Video Info -->
+            <div id="video-info" class="hidden bg-white rounded-lg shadow-lg p-6 mb-6">
+                <div class="flex items-start gap-4">
+                    <img id="video-thumbnail" src="" alt="Video thumbnail" class="w-32 h-24 object-cover rounded-lg">
+                    <div class="flex-1">
+                        <h2 id="video-title" class="text-xl font-semibold text-gray-800 mb-2"></h2>
+                        <button 
+                            onclick="getFormats()" 
+                            class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium flex items-center gap-2"
+                        >
+                            <i class="fas fa-list"></i>
+                            Show Available Formats
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Formats List -->
+            <div id="formats-container" class="hidden bg-white rounded-lg shadow-lg p-6">
+                <h3 class="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
+                    <i class="fas fa-download"></i>
+                    Available Download Formats
+                </h3>
+                <div id="formats-list" class="space-y-3"></div>
+            </div>
+
+            <!-- API Documentation -->
+            <div class="bg-white rounded-lg shadow-lg p-6 mt-8">
+                <h3 class="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
+                    <i class="fas fa-code"></i>
+                    API Endpoints
+                </h3>
+                <div class="space-y-4 text-sm">
+                    <div class="bg-gray-50 p-3 rounded">
+                        <code class="text-blue-600">GET /info?url=YOUTUBE_URL</code>
+                        <p class="text-gray-600 mt-1">Get basic video information (title and thumbnail)</p>
+                    </div>
+                    <div class="bg-gray-50 p-3 rounded">
+                        <code class="text-blue-600">GET /formats?url=YOUTUBE_URL</code>
+                        <p class="text-gray-600 mt-1">List all available download formats</p>
+                    </div>
+                    <div class="bg-gray-50 p-3 rounded">
+                        <code class="text-blue-600">GET /download?url=YOUTUBE_URL&itag=ITAG</code>
+                        <p class="text-gray-600 mt-1">Download video in specified format</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = window.location.origin;
+        let currentUrl = '';
+
+        function showLoading() {
+            document.getElementById('loading').classList.remove('hidden');
+            document.getElementById('error').classList.add('hidden');
+        }
+
+        function hideLoading() {
+            document.getElementById('loading').classList.add('hidden');
+        }
+
+        function showError(message) {
+            document.getElementById('error-message').textContent = message;
+            document.getElementById('error').classList.remove('hidden');
+            hideLoading();
+        }
+
+        async function getVideoInfo() {
+            const urlInput = document.getElementById('youtube-url');
+            const url = urlInput.value.trim();
+            
+            if (!url) {
+                showError('Please enter a YouTube URL');
+                return;
+            }
+
+            currentUrl = url;
+            showLoading();
+            
+            try {
+                const response = await fetch(`${API_BASE}/info?url=${encodeURIComponent(url)}`);
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${await response.text()}`);
+                }
+                
+                const data = await response.json();
+                
+                document.getElementById('video-title').textContent = data.title;
+                document.getElementById('video-thumbnail').src = data.thumbnail;
+                document.getElementById('video-info').classList.remove('hidden');
+                document.getElementById('formats-container').classList.add('hidden');
+                
+                hideLoading();
+            } catch (error) {
+                showError(`Failed to get video info: ${error.message}`);
+            }
+        }
+
+        async function getFormats() {
+            if (!currentUrl) return;
+            
+            showLoading();
+            
+            try {
+                const response = await fetch(`${API_BASE}/formats?url=${encodeURIComponent(currentUrl)}`);
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${await response.text()}`);
+                }
+                
+                const data = await response.json();
+                
+                const formatsList = document.getElementById('formats-list');
+                formatsList.innerHTML = '';
+                
+                data.formats.forEach(format => {
+                    const formatDiv = document.createElement('div');
+                    formatDiv.className = 'flex items-center justify-between p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors';
+                    
+                    const quality = format.qualityLabel || 'Audio Only';
+                    const size = format.contentLength || 'Unknown size';
+                    const type = format.mimeType.split(';')[0];
+                    
+                    formatDiv.innerHTML = `
+                        <div class="flex-1">
+                            <div class="font-medium text-gray-800">${quality} - ${format.container.toUpperCase()}</div>
+                            <div class="text-sm text-gray-600">${type} • ${size}</div>
+                            ${format.audioBitrate ? `<div class="text-xs text-gray-500">Audio: ${format.audioBitrate}kbps</div>` : ''}
+                        </div>
+                        <button 
+                            onclick="downloadFormat(${format.itag})" 
+                            class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium flex items-center gap-2"
+                        >
+                            <i class="fas fa-download"></i>
+                            Download
+                        </button>
+                    `;
+                    
+                    formatsList.appendChild(formatDiv);
+                });
+                
+                document.getElementById('formats-container').classList.remove('hidden');
+                hideLoading();
+            } catch (error) {
+                showError(`Failed to get formats: ${error.message}`);
+            }
+        }
+
+        function downloadFormat(itag) {
+            if (!currentUrl) return;
+            
+            const downloadUrl = `${API_BASE}/download?url=${encodeURIComponent(currentUrl)}&itag=${itag}`;
+            window.open(downloadUrl, '_blank');
+        }
+
+        // Allow Enter key to trigger search
+        document.getElementById('youtube-url').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                getVideoInfo();
+            }
+        });
+    </script>
+</body>
+</html>
