@@ -9,9 +9,9 @@
   "author": "AbdulHameed Yusuff",
   "license": "MIT",
   "dependencies": {
+    "@distube/ytdl-core": "^4.16.12",
     "cors": "^2.8.5",
-    "express": "^4.17.1",
-    "youtube-dl-exec": "^3.0.25"
+    "express": "^4.17.1"
   },
   "engines": {
     "node": ">=18.x"

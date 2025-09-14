@@ -1,53 +1,37 @@
 const express = require("express");
-const youtubedl = require("youtube-dl-exec");
+const ytdl = require("@distube/ytdl-core");
 const cors = require("cors");
-const path = require("path");
 
 const app = express();
 app.use(cors());
 
-// Servir archivos estáticos desde la carpeta public
-app.use(express.static(path.join(__dirname, 'public')));
-
 app.get("/", (req, res) => {
-    // Si es una petición de API (con query params o headers específicos), mantener el comportamiento original
-    if (req.query.url || req.headers['accept'] === 'application/json') {
-        const ping = new Date();
-        ping.setHours(ping.getHours() - 3);
-        console.log(
-            `Ping at: ${ping.getUTCHours()}:${ping.getUTCMinutes()}:${ping.getUTCSeconds()}`
-        );
-        res.sendStatus(200);
-    } else {
-        // Servir la interfaz web
-        res.sendFile(path.join(__dirname, 'public', 'index.html'));
-    }
+    const ping = new Date();
+    ping.setHours(ping.getHours() - 3);
+    console.log(
+        `Ping at: ${ping.getUTCHours()}:${ping.getUTCMinutes()}:${ping.getUTCSeconds()}`
+    );
+    res.sendStatus(200);
 });
 
 app.get("/info", async (req, res) => {
     const { url } = req.query;
 
-    if (!url) {
-        return res.status(400).send("Invalid query");
-    }
+    if (url) {
+        const isValid = ytdl.validateURL(url);
 
-    try {
-        const info = await youtubedl(url, {
-            dumpSingleJson: true,
-            noWarnings: true,
-            noCallHome: true,
-            noCheckCertificate: true,
-            preferFreeFormats: true,
-            youtubeSkipDashManifest: true,
-        });
+        if (isValid) {
+            const info = (await ytdl.getInfo(url)).videoDetails;
 
-        res.json({
-            title: info.title,
-            thumbnail: info.thumbnail
-        });
-    } catch (error) {
-        console.error('Error getting video info:', error);
-        res.status(500).send("Error getting video info");
+            const title = info.title;
+            const thumbnail = info.thumbnails[2].url;
+
+            res.send({ title: title, thumbnail: thumbnail });
+        } else {
+            res.status(400).send("Invalid url");
+        }
+    } else {
+        res.status(400).send("Invalid query");
     }
 });
 
@@ -56,32 +40,26 @@ app.get("/formats", async (req, res) => {
 
     if (!url) return res.status(400).send("Invalid query");
 
+    if (!ytdl.validateURL(url)) return res.status(400).send("Invalid URL");
+
     try {
-        const info = await youtubedl(url, {
-            dumpSingleJson: true,
-            noWarnings: true,
-            noCallHome: true,
-            noCheckCertificate: true,
-            preferFreeFormats: true,
-            youtubeSkipDashManifest: true,
-        });
+        const info = await ytdl.getInfo(url);
 
         const formats = info.formats.map(f => ({
-            itag: f.format_id,
-            mimeType: f.ext ? `${f.vcodec !== 'none' ? 'video' : 'audio'}/${f.ext}` : 'unknown',
-            qualityLabel: f.height ? `${f.height}p` : null,
-            audioBitrate: f.abr || null,
-            container: f.ext,
-            contentLength: f.filesize ? `${(f.filesize / (1024 * 1024)).toFixed(2)} MB` : null
+            itag: f.itag,
+            mimeType: f.mimeType,
+            qualityLabel: f.qualityLabel || null,
+            audioBitrate: f.audioBitrate || null,
+            container: f.container,
+            contentLength: f.contentLength ? `${(f.contentLength / (1024 * 1024)).toFixed(2)} MB` : null
         }));
 
         res.json({
-            title: info.title,
+            title: info.videoDetails.title,
             formats: formats
         });
-    } catch (error) {
-        console.error('Error getting formats:', error);
-        res.status(500).send("Error getting formats");
+    } catch (err) {
+        res.status(500).send(err.message);
     }
 });
 
@@ -90,46 +68,23 @@ app.get("/download", async (req, res) => {
 
     if (!url || !itag) return res.status(400).send("Missing url or itag");
 
-    try {
-        const info = await youtubedl(url, {
-            dumpSingleJson: true,
-            noWarnings: true,
-            noCallHome: true,
-            noCheckCertificate: true,
-            preferFreeFormats: true,
-            youtubeSkipDashManifest: true,
-        });
+    if (!ytdl.validateURL(url)) return res.status(400).send("Invalid URL");
 
-        const format = info.formats.find(f => f.format_id === itag);
+    try {
+        const info = await ytdl.getInfo(url);
+        const format = ytdl.chooseFormat(info.formats, { quality: itag });
+
         if (!format) return res.status(400).send("Invalid itag");
 
-        const filename = `${info.title.replace(/[^\w\s]/gi, '')}.${format.ext}`;
-        res.header("Content-Disposition", `attachment; filename="${filename}"`);
+        res.header("Content-Disposition", `attachment; filename="${info.videoDetails.title}.${format.container}"`);
 
-        // Stream the video directly
-        const stream = youtubedl.exec(url, {
-            format: itag,
-            output: '-',
-            noWarnings: true,
-            noCallHome: true,
-            noCheckCertificate: true,
-        });
-
-        stream.stdout.pipe(res);
-        
-        stream.on('error', (error) => {
-            console.error('Download error:', error);
-            if (!res.headersSent) {
-                res.status(500).send("Download error");
-            }
-        });
-
-    } catch (error) {
-        console.error('Error downloading:', error);
-        res.status(500).send("Error downloading video");
+        ytdl(url, { format }).pipe(res);
+    } catch (err) {
+        res.status(500).send(err.message);
     }
 });
 
-app.listen(process.env.PORT || 8000, () => {
+
+app.listen(process.env.PORT ||8000, () => {
     console.log("Server is alive");
 });
