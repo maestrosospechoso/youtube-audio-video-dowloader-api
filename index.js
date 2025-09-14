@@ -1,17 +1,27 @@
 const express = require("express");
 const ytdl = require("@distube/ytdl-core");
 const cors = require("cors");
+const path = require("path");
 
 const app = express();
 app.use(cors());
 
+// Servir archivos estáticos desde la carpeta public
+app.use(express.static(path.join(__dirname, 'public')));
+
 app.get("/", (req, res) => {
-    const ping = new Date();
-    ping.setHours(ping.getHours() - 3);
-    console.log(
-        `Ping at: ${ping.getUTCHours()}:${ping.getUTCMinutes()}:${ping.getUTCSeconds()}`
-    );
-    res.sendStatus(200);
+    // Si es una petición de API (con query params o headers específicos), mantener el comportamiento original
+    if (req.query.url || req.headers['accept'] === 'application/json') {
+        const ping = new Date();
+        ping.setHours(ping.getHours() - 3);
+        console.log(
+            `Ping at: ${ping.getUTCHours()}:${ping.getUTCMinutes()}:${ping.getUTCSeconds()}`
+        );
+        res.sendStatus(200);
+    } else {
+        // Servir la interfaz web
+        res.sendFile(path.join(__dirname, 'public', 'index.html'));
+    }
 });
 
 app.get("/info", async (req, res) => {
